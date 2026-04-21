@@ -51,7 +51,7 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 PRIMARY_MODEL = "gemini-2.5-flash"
-FALLBACK_MODEL = "gemini-1.5-flash"
+FALLBACK_MODEL = "gemini-2.0-flash-001"   # đổi từ 1.5 sang 2.0
 
 def call_model(model_name: str, prompt: str) -> str:
     response = client.models.generate_content(
@@ -70,24 +70,26 @@ Hãy trả lời rõ ràng, có bố cục, đúng chính tả.
 {content}
 """
 
-    # Thử model 2.5 trước
     try:
         return call_model(PRIMARY_MODEL, prompt)
+
     except Exception as e1:
         err1 = str(e1)
-
-        # Nếu là quota/rate limit/model unavailable thì thử fallback
         lower = err1.lower()
-        if any(x in lower for x in ["429", "quota", "rate", "resource_exhausted", "503", "unavailable", "not found"]):
-            time.sleep(2)
+
+        # Nếu hết quota / rate limit / model tạm unavailable
+        if any(x in lower for x in ["429", "quota", "rate", "resource_exhausted", "503", "unavailable"]):
             try:
                 return call_model(FALLBACK_MODEL, prompt)
             except Exception as e2:
                 return (
-                    "❌ Gemini 2.5 hiện không phản hồi.\n\n"
+                    "❌ Gemini 2.5 hiện đã hết quota hoặc tạm không phản hồi.\n\n"
                     f"Lỗi model 2.5: {e1}\n\n"
-                    f"Lỗi model 1.5 dự phòng: {e2}\n\n"
-                    "Bạn hãy kiểm tra lại quota trong Google AI Studio hoặc đổi sang key khác."
+                    f"Lỗi model 2.0 dự phòng: {e2}\n\n"
+                    "Cách xử lý:\n"
+                    "1. Chờ quota reset rồi thử lại.\n"
+                    "2. Tạo API key/project khác.\n"
+                    "3. Nâng gói trong Google AI Studio nếu cần dùng nhiều."
                 )
 
         return f"❌ Lỗi thật từ API: {e1}"
@@ -137,4 +139,4 @@ with tabs[2]:
             st.warning("Bạn chưa nhập.")
 
 st.markdown("---")
-st.caption("Google GenAI SDK • ưu tiên Gemini 2.5 Flash, tự fallback sang 1.5 Flash")
+st.caption("Ưu tiên Gemini 2.5 Flash • fallback Gemini 2.0 Flash")
