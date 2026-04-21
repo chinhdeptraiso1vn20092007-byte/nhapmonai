@@ -1,81 +1,73 @@
 import streamlit as st
-from google import genai
-import hashlib
-import html
+import google.generativeai as genai
+import time
 
+# --- 1. GIAO DIỆN VĂN HIẾN AI 2.5 ---
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎")
 
-# --- LẤY DANH SÁCH KEY ---
-api_keys = st.secrets.get("GEMINI_API_KEYS", [])
+st.markdown("""
+    <style>
+    .stApp { background-color: #ffffff; }
+    p, span, h1, h2, h3 { color: #000000 !important; font-weight: 800 !important; }
+    .main-title { color: #e11d48 !important; text-align: center; font-size: 3rem !important; font-weight: 900 !important; }
+    .stButton>button {
+        width: 100%; background: #e11d48 !important; color: white !important;
+        font-weight: 900 !important; height: 60px; border-radius: 12px !important;
+    }
+    .result-card {
+        background: #f8fafc; padding: 20px; border-radius: 12px;
+        border-left: 10px solid #e11d48; color: #000000 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-if not api_keys:
-    st.error("❌ Chưa có API key!")
+# --- 2. CẤU HÌNH AI "LÌ ĐÒN" ---
+api_key = st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("🔑 Chưa nhập API Key!")
     st.stop()
 
-# --- CACHE ---
-if "cache" not in st.session_state:
-    st.session_state.cache = {}
+genai.configure(api_key=api_key)
 
-def get_cache_key(text):
-    return hashlib.md5(text.encode()).hexdigest()
-
-# --- FALLBACK OFFLINE ---
-def offline_fallback(prompt):
-    if "dũng cảm" in prompt.lower():
-        return """Dẫn chứng về lòng dũng cảm:
-
-- Nguyễn Ngọc Ký: vượt qua khuyết tật để trở thành nhà giáo.
-- Các y bác sĩ tuyến đầu chống dịch COVID-19.
-- Nhân vật Phùng trong "Chiếc thuyền ngoài xa" dám nhìn thẳng vào sự thật.
-
-→ Lòng dũng cảm là sức mạnh giúp con người vượt qua nghịch cảnh."""
-    return "⚠️ Hệ thống đang bận, vui lòng thử lại sau."
-
-# --- GỌI AI VỚI ROTATION ---
-def call_ai(prompt):
-    cache_key = get_cache_key(prompt)
-
-    # dùng cache trước
-    if cache_key in st.session_state.cache:
-        return st.session_state.cache[cache_key]
-
-    for key in api_keys:
+def call_ai_power(content):
+    # CHÌA KHÓA: Đổi sang 1.5-flash để lấy hạn mức cao nhất (15 req/min)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    for i in range(5): # Thử lại 5 lần tự động
         try:
-            client = genai.Client(api_key=key)
-
-            res = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
-
-            if res and res.text:
-                result = res.text.strip()
-                st.session_state.cache[cache_key] = result
-                return result
-
+            response = model.generate_content(f"Bạn là Văn Hiến AI 2.5. Hãy xử lý: {content}")
+            return response.text
         except Exception as e:
             if "429" in str(e):
+                # Nếu bị bóp băng thông, đợi lâu hơn một chút (3-5 giây)
+                time.sleep(4)
                 continue
-            return f"❌ Lỗi: {e}"
+            return f"❌ Lỗi: {str(e)}"
+    return "⚠️ Google đang quá tải. Bạn hãy đợi khoảng 15 giây rồi thử lại nhé!"
 
-    # nếu tất cả key đều hết quota
-    return offline_fallback(prompt)
+# --- 3. GIAO DIỆN ---
+st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
 
-# --- HIỂN THỊ ---
-def show(text):
-    safe = html.escape(text)
-    st.markdown(f"<div style='border:2px solid red;padding:15px'>{safe}</div>", unsafe_allow_html=True)
+t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
-# --- UI ---
-st.title("💎 VĂN HIẾN AI 2.5")
+with t1:
+    p1 = st.text_area("Đề bài:", key="p1")
+    if st.button("XỬ LÝ DÀN Ý 2.5"):
+        if p1:
+            with st.spinner("AI 2.5 đang xử lý..."):
+                st.markdown(f"<div class='result-card'>{call_ai_power(f'Lập dàn ý: {p1}')}</div>", unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["📝 LẬP DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
+with t2:
+    p2 = st.text_area("Bài làm:", key="p2", height=200)
+    if st.button("THẨM ĐỊNH BÀI 2.5"):
+        if p2:
+            with st.spinner("AI 2.5 đang chấm bài..."):
+                st.markdown(f"<div class='result-card'>{call_ai_power(f'Chấm điểm: {p2}')}</div>", unsafe_allow_html=True)
 
-with tab3:
-    p = st.text_input("Nhập vấn đề:")
-
-    if st.button("TÌM"):
-        if p:
-            with st.spinner("Đang xử lý..."):
-                result = call_ai(f"Tìm dẫn chứng cho: {p}")
-                show(result)
+with t3:
+    p3 = st.text_input("Vấn đề:", key="p3")
+    if st.button("TÌM DẪN CHỨNG 2.5"):
+        if p3:
+            with st.spinner("AI 2.5 đang tìm..."):
+                st.markdown(f"<div class='result-card'>{call_ai_power(f'Dẫn chứng: {p3}')}</div>", unsafe_allow_html=True)
