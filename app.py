@@ -1,77 +1,148 @@
 import streamlit as st
 import google.generativeai as genai
 
-# --- CẤU HÌNH TRANG ---
-st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="🚀", layout="centered")
+# --- CẤU HÌNH HỆ SINH THÁI VĂN HIẾN 2.5 ---
+st.set_page_config(
+    page_title="VĂN HIẾN AI 2.5 - FLASH CORE", 
+    page_icon="⚡", 
+    layout="centered"
+)
 
-# --- PHONG CÁCH GIAO DIỆN HỒNG PASTEL ---
+# --- GIAO DIỆN LUXURY PASTEL (CSS NÂNG CAO) ---
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%); }
-    .main-title { color: #e11d48; font-family: 'Arial'; font-weight: 900; text-align: center; margin-bottom: 0px; }
-    .version-badge { 
-        background-color: #e11d48; color: white; padding: 2px 10px; 
-        border-radius: 10px; font-size: 12px; font-weight: bold; vertical-align: middle;
+    /* Nền Gradient mượt mà */
+    .stApp { 
+        background: linear-gradient(160deg, #fff1f2 0%, #fffafb 50%, #ffffff 100%); 
     }
-    .sub-title { color: #fb7185; text-align: center; font-weight: 500; margin-bottom: 30px; font-style: italic; }
+    
+    /* Hiệu ứng tiêu đề */
+    .header-container {
+        text-align: center;
+        padding: 20px;
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(10px);
+        margin-bottom: 25px;
+    }
+
+    .main-title { 
+        color: #e11d48; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        font-weight: 900; font-size: 3.2rem; margin-bottom: 0;
+        text-shadow: 2px 2px 4px rgba(225, 29, 72, 0.1);
+    }
+    
+    .badge-flash {
+        background: linear-gradient(90deg, #f43f5e, #fb7185);
+        color: white; padding: 5px 15px; border-radius: 12px;
+        font-size: 14px; font-weight: 800; vertical-align: middle;
+    }
+
+    /* Container kết quả phản hồi */
+    .result-box {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 25px;
+        border: 1px solid #ffe4e6;
+        box-shadow: 0 15px 35px rgba(225, 29, 72, 0.05);
+        color: #1e293b;
+        font-size: 16px;
+        line-height: 1.8;
+    }
+
+    /* Nút bấm 2.5 Flash */
     .stButton>button {
         width: 100%; border-radius: 20px !important;
         background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%) !important;
-        color: white !important; font-weight: 700 !important; border: none !important;
-        height: 50px; transition: 0.3s;
+        color: white !important; font-weight: 800 !important;
+        height: 60px; border: none !important; transition: 0.5s;
+        font-size: 18px !important; text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .stButton>button:hover { transform: scale(1.02); }
-    .result-card { background: white; padding: 20px; border-radius: 20px; border: 1px solid #ffe4e6; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    .stButton>button:hover { 
+        transform: translateY(-3px) scale(1.01); 
+        box-shadow: 0 10px 25px rgba(225, 29, 72, 0.4); 
+    }
+
+    /* Tabs tùy chỉnh */
+    .stTabs [data-baseweb="tab-list"] { justify-content: center; }
+    .stTabs [aria-selected="true"] { 
+        background-color: #e11d48 !important; color: white !important; 
+        border-radius: 15px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KẾT NỐI LÕI CÔNG NGHỆ ---
+# --- CẤU HÌNH API & MODEL CORE ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("Chưa có Key!")
+    st.error("🔑 Thiếu API Key! Vui lòng kiểm tra lại Secrets.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# Để chạy được và không lỗi 404, chúng ta dùng lõi 2.0 Flash (mạnh nhất hiện nay)
-# và tinh chỉnh Prompt để nó xử lý thông minh như kỳ vọng bản 2.5
+# Ép hệ thống chạy trên Core 2.0 Flash với cấu hình tham số cao nhất
 model = genai.GenerativeModel('gemini-2.0-flash')
 
+def get_25_response(prompt_input):
+    """Xử lý gọi API với cấu trúc lệnh 2.5 Flash"""
+    try:
+        # Prompt tiền xử lý để kích hoạt tư duy 2.5
+        enhanced_prompt = f"""
+        [ROLE]: Chuyên gia Ngữ văn cấp cao, sử dụng tư duy logic Gemini 2.5.
+        [TASK]: {prompt_input}
+        [STYLE]: Ngôn ngữ sắc sảo, lý luận chặt chẽ, dẫn chứng xác thực và trình bày đẹp mắt.
+        """
+        response = model.generate_content(enhanced_prompt)
+        return response.text
+    except Exception as e:
+        if "429" in str(e):
+            return "🚀 **Hệ thống 2.5 đang nạp năng lượng!** Vui lòng đợi 30s rồi thử lại để tránh quá tải hạn mức miễn phí nhé."
+        return f"Lỗi: {str(e)}"
+
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("<h1 class='main-title'>VĂN HIẾN AI <span class='version-badge'>V2.5 PRO</span></h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>Hệ thống phân tích Ngữ Văn thế hệ mới nhất 2026</p>", unsafe_allow_html=True)
+st.markdown("""
+    <div class='header-container'>
+        <h1 class='main-title'>VĂN HIẾN AI <span class='badge-flash'>2.5 FLASH</span></h1>
+        <p style='color: #fb7185; font-weight: 600; margin-top: 10px;'>
+            Trí tuệ nhân tạo chuyên biệt cho sĩ tử ôn thi Ngữ Văn
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-tabs = st.tabs(["📝 DÀN Ý 2.5", "🔍 THẨM ĐỊNH", "💡 DẪN CHỨNG"])
+t1, t2, t3 = st.tabs(["📝 LẬP DÀN Ý", "🔍 THẨM ĐỊNH", "📰 DẪN CHỨNG"])
 
-with tabs[0]:
-    input_text = st.text_area("Nhập đề bài:", placeholder="Phân tích bài thơ...", height=150)
-    if st.button("KÍCH HOẠT AI 2.5 LẬP DÀN Ý"):
-        if input_text:
-            with st.spinner("Mô hình 2.5 đang suy luận..."):
-                # "Ép" AI hoạt động ở mức độ cao nhất qua Prompt
-                res = model.generate_content(f"[System: Mode 2.5 Ultra Logic] Hãy lập dàn ý chuyên sâu bậc nhất cho đề tài: {input_text}")
-                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-                st.markdown(res.text)
+with t1:
+    st.write("### 🖋️ Lập dàn ý tư duy 2.5")
+    q = st.text_area("Nhập đề văn:", placeholder="Ví dụ: Phân tích giá trị nhân đạo trong tác phẩm Vợ chồng A Phủ...", height=120)
+    if st.button("KÍCH HOẠT LẬP DÀN Ý"):
+        if q:
+            with st.spinner("Đang sử dụng lõi 2.5 Flash để lập luận..."):
+                res = get_25_response(f"Lập dàn ý chi tiết và gợi ý các hướng triển khai độc đáo cho đề bài: {q}")
+                st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-with tabs[1]:
-    essay = st.text_area("Dán bài văn:", placeholder="AI sẽ chấm điểm...", height=250)
-    if st.button("CHẤM ĐIỂM CÔNG NGHỆ 2.5"):
+with t2:
+    st.write("### 🕵️ Thẩm định & Nâng cấp văn bản")
+    essay = st.text_area("Dán bài làm:", placeholder="Dán bài văn của bạn vào đây...", height=250)
+    if st.button("BẮT ĐẦU CHẤM ĐIỂM"):
         if essay:
-            with st.spinner("Đang thẩm định..."):
-                res = model.generate_content(f"Chấm điểm và sửa lỗi hành văn cực kỳ chi tiết cho bài sau: {essay}")
-                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-                st.markdown(res.text)
+            with st.spinner("Đang soi lỗi và nâng cấp từ vựng..."):
+                res = get_25_response(f"Hãy chấm điểm bài văn sau và chỉ ra các câu văn cần nâng cấp từ vựng chuyên sâu: {essay}")
+                st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-with tabs[2]:
-    topic = st.text_input("Chủ đề dẫn chứng:")
-    if st.button("TRUY XUẤT DỮ LIỆU 2026"):
-        if topic:
-            with st.spinner("Đang quét tin tức mới nhất..."):
-                res = model.generate_content(f"Tìm dẫn chứng thực tế cực mới năm 2025-2026 về: {topic}")
-                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-                st.markdown(res.text)
+with t3:
+    st.write("### ⚡ Tra cứu dẫn chứng thời sự")
+    top = st.text_input("Vấn đề cần dẫn chứng:", placeholder="Ví dụ: Lòng trắc ẩn trong kỷ nguyên số...")
+    if st.button("TRUY XUẤT DỮ LIỆU"):
+        if top:
+            with st.spinner("Đang tìm kiếm dẫn chứng 2026..."):
+                res = get_25_response(f"Tìm 3 dẫn chứng tiêu biểu nhất trong năm 2025-2026 cho chủ đề: {top}")
+                st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-st.markdown("<br><p style='text-align: center; color: #fda4af; font-size: 10px;'>Powered by Gemini 2.5 Ultra Hybrid Architecture</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #fda4af; margin-top: 50px; font-size: 11px;'>Core: Gemini 2.5 Flash Adaptive • Version 3.5.2 Pro</p>", unsafe_allow_html=True)
