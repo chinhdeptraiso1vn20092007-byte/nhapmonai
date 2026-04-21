@@ -1,9 +1,10 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import time
 import random
 import html
 
+# --- 1. GIAO DIỆN ---
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎", layout="centered")
 
 st.markdown("""
@@ -29,11 +30,6 @@ st.markdown("""
         border-radius: 15px !important;
         font-size: 1.15rem !important;
         border: none !important;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background: #be123c !important;
-        transform: scale(1.02);
     }
     .result-card {
         background: #ffffff;
@@ -49,93 +45,106 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- 2. API KEY ---
 api_key = st.secrets.get("GEMINI_API_KEY")
+
 if not api_key:
-    st.error("🔑 Thiếu GEMINI_API_KEY trong Streamlit Secrets.")
+    st.error("🔑 Thiếu GEMINI_API_KEY trong Secrets!")
     st.stop()
 
-genai.configure(api_key=api_key)
-
+# --- 3. KHỞI TẠO AI ---
+client = genai.Client(api_key=api_key)
 MODEL_NAME = "gemini-2.5-flash"
 
-def call_ai_ultimate(content: str) -> str:
-    try:
-        model = genai.GenerativeModel(model_name=MODEL_NAME)
-    except Exception as e:
-        return f"❌ Không khởi tạo được model {MODEL_NAME}: {e}"
-
-    max_attempts = 5
+# --- 4. HÀM GỌI AI ---
+def call_ai(content: str) -> str:
+    max_attempts = 3
 
     for i in range(max_attempts):
         try:
-            full_prompt = f"""
-Bạn là chuyên gia Văn Hiến AI 2.5.
-Hãy thực hiện yêu cầu sau một cách chuyên nghiệp, rõ ràng, mạch lạc, đúng chính tả:
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=f"""
+Bạn là giáo viên Ngữ Văn giỏi.
+Trả lời rõ ràng, có bố cục:
 
 {content}
 """
-            response = model.generate_content(full_prompt)
+            )
 
-            if hasattr(response, "text") and response.text:
+            # Lấy nội dung an toàn
+            if response and response.text:
                 return response.text.strip()
 
-            return "⚠️ AI không trả về nội dung văn bản."
+            return "⚠️ AI không trả nội dung."
 
         except Exception as e:
             err = str(e).lower()
 
-            if any(x in err for x in ["429", "resource", "quota", "500", "503", "limit", "unavailable"]):
-                wait_time = min((i + 1) * 2 + random.random(), 10)
-                time.sleep(wait_time)
+            # Retry khi server bận
+            if any(x in err for x in ["429", "quota", "503", "unavailable"]):
+                time.sleep((i + 1) * 2)
                 continue
 
+            # Hiện lỗi thật
             return f"❌ Lỗi hệ thống: {e}"
 
-    return "🚀 Máy chủ đang bận. Bạn thử lại sau ít giây nhé."
+    return "🚀 Server đang bận, thử lại sau vài giây."
 
-def render_result(text: str):
+# --- 5. HIỂN THỊ KẾT QUẢ ---
+def show_result(text):
     safe_text = html.escape(text)
     st.markdown(f"<div class='result-card'>{safe_text}</div>", unsafe_allow_html=True)
 
+# --- 6. GIAO DIỆN CHÍNH ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
 
 tabs = st.tabs(["📝 LẬP DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
+# --- TAB 1 ---
 with tabs[0]:
-    p1 = st.text_area("Nhập đề bài văn học:", height=120, key="area1")
-    if st.button("LẬP DÀN Ý TỨC THÌ", key="btn1"):
+    p1 = st.text_area("Nhập đề bài văn học:", height=120)
+
+    if st.button("LẬP DÀN Ý"):
         if p1.strip():
-            with st.spinner("AI đang lập dàn ý..."):
-                res = call_ai_ultimate(f"Lập dàn ý chi tiết cho đề bài văn học sau:\n{p1}")
-                render_result(res)
+            with st.spinner("AI đang xử lý..."):
+                res = call_ai(f"Lập dàn ý chi tiết cho đề bài:\n{p1}")
+                show_result(res)
+        else:
+            st.warning("Bạn chưa nhập đề.")
 
+# --- TAB 2 ---
 with tabs[1]:
-    p2 = st.text_area("Dán nội dung bài làm:", height=250, key="area2")
-    if st.button("THẨM ĐỊNH BÀI VIẾT", key="btn2"):
+    p2 = st.text_area("Dán bài văn:", height=250)
+
+    if st.button("CHẤM BÀI"):
         if p2.strip():
-            with st.spinner("AI đang đọc và chấm bài..."):
-                res = call_ai_ultimate(
-                    f"""Chấm điểm và nhận xét chi tiết bài văn sau.
-Yêu cầu:
-- Nhận xét ưu điểm
-- Chỉ ra hạn chế
-- Góp ý sửa lỗi
-- Cho điểm tham khảo
+            with st.spinner("AI đang chấm..."):
+                res = call_ai(f"""
+Chấm bài văn:
+- Nhận xét
+- Sửa lỗi
+- Góp ý
+- Cho điểm
 
-Bài làm:
-{p2}"""
-                )
-                render_result(res)
+Bài:
+{p2}
+""")
+                show_result(res)
+        else:
+            st.warning("Bạn chưa nhập bài.")
 
+# --- TAB 3 ---
 with tabs[2]:
-    p3 = st.text_input("Vấn đề cần tìm dẫn chứng:", key="input3")
-    if st.button("TRUY XUẤT DỮ LIỆU", key="btn3"):
+    p3 = st.text_input("Nhập vấn đề:")
+
+    if st.button("TÌM DẪN CHỨNG"):
         if p3.strip():
-            with st.spinner("AI đang tìm dẫn chứng..."):
-                res = call_ai_ultimate(
-                    f"Tìm các dẫn chứng thời sự, xã hội, đời sống phù hợp để viết văn nghị luận về chủ đề: {p3}"
-                )
-                render_result(res)
+            with st.spinner("AI đang tìm..."):
+                res = call_ai(f"Tìm dẫn chứng thực tế cho: {p3}")
+                show_result(res)
+        else:
+            st.warning("Bạn chưa nhập.")
 
 st.markdown("---")
-st.caption("Hệ thống sử dụng Gemini 2.5 Flash • Văn Hiến AI 2.5")
+st.caption("Gemini 2.5 Flash • Văn Hiến AI 2026")
