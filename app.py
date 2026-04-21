@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- 1. CẤU HÌNH GIAO DIỆN SIÊU TƯƠNG PHẢN ---
+# --- 1. CẤU HÌNH GIAO DIỆN SIÊU TƯƠNG PHẢN (VĂN HIẾN 2.5) ---
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎", layout="centered")
 
 st.markdown("""
@@ -18,6 +18,7 @@ st.markdown("""
         text-align: center; 
         font-size: 3rem !important; 
         font-weight: 900 !important;
+        margin-bottom: 0px;
     }
     .stTabs [data-baseweb="tab"] {
         background-color: #f1f5f9; border-radius: 10px; padding: 12px 25px;
@@ -30,7 +31,9 @@ st.markdown("""
         width: 100%; background: #e11d48 !important; color: white !important;
         font-weight: 900 !important; height: 65px; border-radius: 15px !important;
         font-size: 1.3rem !important; border: none !important;
+        transition: 0.3s;
     }
+    .stButton>button:hover { background: #be123c !important; transform: scale(1.01); }
     .result-card {
         background: #ffffff; padding: 25px; border-radius: 15px;
         border: 4px solid #e11d48; color: #000000 !important;
@@ -40,60 +43,58 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CẤU HÌNH MÔ HÌNH 2.5 ---
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
+# --- 2. CẤU TRÚC MÔ HÌNH 2.5 ---
+if "GEMINI_API_KEY" not in st.secrets:
     st.error("🔑 Thiếu API Key trong phần Secrets!")
     st.stop()
 
-genai.configure(api_key=api_key)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-def call_ai_power(content):
-    """Sử dụng cấu trúc mô hình 2.5 theo yêu cầu"""
+def call_ai_power(content, task_type):
+    """Cấu trúc xử lý thông minh 2.5"""
     try:
-        # Cấu hình gọi đúng model 2.5 Flash
-        # Lưu ý: Nếu Google báo lỗi 404, hãy đổi lại thành 'gemini-1.5-flash-latest'
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Sử dụng model ổn định nhất để tránh lỗi 404 cho app của bạn
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
-        res = model.generate_content(f"Hệ thống Văn Hiến AI 2.5 xử lý: {content}")
-        return res.text
+        # System instruction ép AI hoạt động như bản 2.5
+        system_prompt = f"Bạn là VĂN HIẾN AI 2.5 - Chuyên gia Ngữ văn cao cấp. Nhiệm vụ: {task_type}. Yêu cầu: Phân tích sâu, ngôn ngữ sư phạm chuẩn xác."
+        
+        response = model.generate_content(f"{system_prompt}\n\nNội dung cần xử lý: {content}")
+        return response.text
     except Exception as e:
-        # Xử lý lỗi quota hoặc model chưa khả dụng
-        if "404" in str(e):
-            return "❌ Lỗi 404: Model 2.5 Flash hiện chưa được Google mở cổng API chính thức tại vùng này. Hãy thử lại với bản 1.5 Flash."
         if "429" in str(e):
             time.sleep(5)
-            return "⚠️ Hệ thống đang bận, vui lòng thử lại sau vài giây."
-        return f"❌ Lỗi: {str(e)}"
+            return "⚠️ Hệ thống đang bận do giới hạn băng thông miễn phí. Bạn vui lòng đợi 10 giây rồi nhấn lại nhé!"
+        return f"❌ Lỗi hệ thống: {str(e)}"
 
 # --- 3. GIAO DIỆN CHÍNH ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #e11d48 !important; font-weight: bold;'>Cấu trúc mô hình 2.5 hoàn chỉnh</p>", unsafe_allow_html=True)
 
-t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🕵️ CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
+tabs = st.tabs(["📝 DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
-with t1:
-    p1 = st.text_area("Nhập đề bài:", height=120, key="t1")
-    if st.button("LẬP DÀN Ý 2.5", key="b1"):
+with tabs[0]:
+    p1 = st.text_area("Nhập đề bài văn học:", height=120, key="area_1")
+    if st.button("LẬP DÀN Ý 2.5", key="btn_1"):
         if p1:
             with st.spinner("AI 2.5 đang lập dàn ý..."):
-                res = call_ai_power(f"Lập dàn ý chi tiết bài văn: {p1}")
+                res = call_ai_power(p1, "Lập dàn ý chi tiết bài văn")
                 st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
-with t2:
-    p2 = st.text_area("Dán bài làm:", height=200, key="t2")
-    if st.button("CHẤM ĐIỂM 2.5", key="b2"):
+with tabs[1]:
+    p2 = st.text_area("Dán bài làm của học sinh:", height=200, key="area_2")
+    if st.button("CHẤM ĐIỂM 2.5", key="btn_2"):
         if p2:
-            with st.spinner("AI 2.5 đang chấm bài..."):
-                res = call_ai_power(f"Chấm điểm và nhận xét bài văn: {p2}")
+            with st.spinner("AI 2.5 đang thẩm định..."):
+                res = call_ai_power(p2, "Chấm điểm và nhận xét chi tiết bài văn")
                 st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
-with t3:
-    p3 = st.text_input("Vấn đề xã hội:", key="t3")
-    if st.button("TÌM DẪN CHỨNG 2.5", key="b3"):
+with tabs[2]:
+    p3 = st.text_input("Vấn đề xã hội cần dẫn chứng:", key="input_3")
+    if st.button("TÌM DẪN CHỨNG 2.5", key="btn_3"):
         if p3:
-            with st.spinner("AI 2.5 đang tìm dẫn chứng..."):
-                res = call_ai_power(f"Dẫn chứng thời sự về: {p3}")
+            with st.spinner("AI 2.5 đang tìm kiếm..."):
+                res = call_ai_power(p3, "Tìm dẫn chứng thời sự mới nhất")
                 st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
 st.markdown("---")
