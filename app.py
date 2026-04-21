@@ -2,111 +2,125 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- CẤU HÌNH HỆ THỐNG VĂN HIẾN AI 2.5 PRO ---
-st.set_page_config(
-    page_title="VĂN HIẾN AI 2.5", 
-    page_icon="📖", 
-    layout="centered"
-)
+# --- CẤU HÌNH ---
+st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="📖", layout="centered")
 
-# --- GIAO DIỆN TỐI ƯU HIỂN THỊ (CSS) ---
+# --- CSS TỐI ƯU HIỂN THỊ (ĐẢM BẢO RÕ CHỮ) ---
 st.markdown("""
     <style>
-    /* Nền ứng dụng */
-    .stApp { 
-        background-color: #fff1f2; 
-    }
+    /* Nền hồng rất nhạt để làm nổi bật chữ */
+    .stApp { background-color: #fff5f5; }
     
-    /* Tiêu đề chính */
-    .main-title { 
-        color: #e11d48 !important; 
-        font-family: 'Arial', sans-serif; 
-        font-weight: 900; 
-        text-align: center; 
-        font-size: 2.5rem;
-        margin-bottom: 5px;
-    }
-    
-    .badge-25 {
-        background-color: #e11d48; 
-        color: white !important; 
-        padding: 2px 12px; 
-        border-radius: 10px;
-        font-size: 14px;
+    /* Chữ chính trong App - Ép sang màu đen đậm */
+    p, span, label, .stMarkdown, h1, h2, h3 {
+        color: #1a1a1a !important; 
+        font-family: 'Arial', sans-serif;
     }
 
-    /* Chữ trong toàn bộ ứng dụng phải là màu tối để dễ đọc */
-    p, span, label, .stMarkdown {
-        color: #334155 !important;
-        font-weight: 500;
+    /* Tiêu đề đặc biệt */
+    .main-title {
+        color: #e11d48 !important;
+        text-align: center;
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin-bottom: 0px;
     }
 
-    /* Khung kết quả trả về */
-    .result-card {
-        background: white; 
-        padding: 20px; 
-        border-radius: 15px;
-        border: 2px solid #fecdd3; 
-        color: #1e293b !important; /* Chữ đen đậm */
-        line-height: 1.6;
-        margin-top: 15px;
-    }
-
-    /* Tùy chỉnh Tab - Khắc phục lỗi không thấy chữ trên Tab */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
+    /* Tab - Sửa lỗi không thấy chữ */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-        background-color: #fce7f3;
+        background-color: #ffe4e6;
         border-radius: 10px 10px 0 0;
-        padding: 10px 15px;
-        color: #e11d48 !important; /* Chữ trên tab màu đỏ */
+        padding: 10px 20px;
+        color: #e11d48 !important; /* Chữ Tab màu đỏ đậm */
+        font-weight: bold;
     }
     .stTabs [aria-selected="true"] {
         background-color: #e11d48 !important;
         color: white !important;
     }
 
-    /* Nút bấm */
+    /* Khung kết quả trắng tinh, chữ đen rành mạch */
+    .result-card {
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid #fb7185;
+        color: #000000 !important;
+        line-height: 1.7;
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* Nút bấm đỏ rực */
     .stButton>button {
-        width: 100%; 
-        border-radius: 12px !important;
+        width: 100%;
         background: #e11d48 !important;
-        color: white !important; 
-        font-weight: bold !important;
+        color: white !important;
+        font-weight: 800 !important;
+        border-radius: 12px !important;
         height: 50px;
-        border: none !important;
+        border: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KHỞI TẠO AI ---
+# --- KẾT NỐI AI ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("🔑 Thiếu API Key trong Secrets!")
+    st.error("🔑 Chưa có API Key trong Secrets!")
     st.stop()
 
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
-def call_ai_v25(prompt_text):
+def call_ai(content):
     try:
-        logic_prompt = f"[CORE 2.5] {prompt_text}"
-        response = model.generate_content(logic_prompt)
-        return response.text
+        res = model.generate_content(f"[Tư duy 2.5] {content}")
+        return res.text
     except Exception as e:
         if "429" in str(e):
-            st.warning("⏳ Hệ thống đang nghỉ 30s để nạp lại năng lượng...")
-            time.sleep(5)
-            return "Vui lòng đợi một chút rồi nhấn lại nhé!"
-        return f"Lỗi: {str(e)}"
+            return "⏳ Hệ thống bận, hãy đợi 30 giây rồi bấm lại nhé!"
+        return f"Lỗi: {e}"
 
-# --- HEADER ---
-st.markdown("<h1 class='main-title'>VĂN HIẾN AI <span class='badge-25'>2.5 PRO</span></h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Hệ sinh thái phân tích Ngữ Văn thế hệ mới</p>", unsafe_allow_html=True)
+# --- GIAO DIỆN ---
+st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5 PRO</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-weight: bold; color: #fb7185 !important;'>Hệ sinh thái học văn - Chữ rõ, máy mạnh</p>", unsafe_allow_html=True)
 
-# --- TABS NỘI DUNG ---
-t1, t2, t3 = st.tabs(["📝 LẬP DÀN Ý", "🕵️ CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
+tab1, tab2, tab3 = st.tabs(["📝 LẬP DÀN Ý", "🕵️ CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
-with t1:
-    st.markdown("### 🖋️ Nhập đề bài
+with tab1:
+    st.markdown("### 🖋️ Nhập đề bài văn học")
+    de_bai = st.text_area("Đề bài:", placeholder="Ví dụ: Phân tích nhân vật Tràng...", height=100, key="txt1")
+    if st.button("LẬP DÀN Ý NGAY", key="btn1"):
+        if de_bai:
+            with st.spinner("AI 2.5 đang viết..."):
+                result = call_ai(f"Lập dàn ý chi tiết: {de_bai}")
+                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+                st.write(result)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+with tab2:
+    st.markdown("### 🔍 Thẩm định bài viết")
+    bai_van = st.text_area("Dán bài văn:", placeholder="Dán bài văn vào đây...", height=200, key="txt2")
+    if st.button("CHẤM ĐIỂM CHI TIẾT", key="btn2"):
+        if bai_van:
+            with st.spinner("AI 2.5 đang soi lỗi..."):
+                result = call_ai(f"Chấm điểm và sửa lỗi văn sau: {bai_van}")
+                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+                st.write(result)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+with tab3:
+    st.markdown("### 📰 Kho dẫn chứng 2.5")
+    chu_de = st.text_input("Vấn đề xã hội:", placeholder="Ví dụ: Sự thấu cảm...", key="txt3")
+    if st.button("TÌM DẪN CHỨNG MỚI", key="btn3"):
+        if chu_de:
+            with st.spinner("AI 2.5 đang tra cứu..."):
+                result = call_ai(f"Dẫn chứng mới nhất về: {chu_de}")
+                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+                st.write(result)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("---")
+st.markdown("<p style='text-align: center; font-size: 12px;'>Phiên bản Core 2.5 PRO • 2026</p>", unsafe_allow_html=True)
