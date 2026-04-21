@@ -1,73 +1,125 @@
 import streamlit as st
 import google.generativeai as genai
-import time
 
-# --- 1. GIAO DIỆN VĂN HIẾN AI 2.5 ---
-st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎")
+# 1. Cấu hình trang với giao diện rộng và icon dễ thương
+st.set_page_config(
+    page_title="Văn Học Trẻ - Lập Dàn Ý 2.5",
+    page_icon="🌸",
+    layout="wide"
+)
 
+# 2. CSS Giao diện màu hồng sinh động và icon trang trí
 st.markdown("""
     <style>
-    .stApp { background-color: #ffffff; }
-    p, span, h1, h2, h3 { color: #000000 !important; font-weight: 800 !important; }
-    .main-title { color: #e11d48 !important; text-align: center; font-size: 3rem !important; font-weight: 900 !important; }
-    .stButton>button {
-        width: 100%; background: #e11d48 !important; color: white !important;
-        font-weight: 900 !important; height: 60px; border-radius: 12px !important;
+    /* Nền tổng thể màu hồng nhạt */
+    .stApp {
+        background-color: #fff0f3;
     }
+    
+    /* Làm đẹp tiêu đề chính */
+    .main-title {
+        color: #c2185b;
+        text-align: center;
+        font-family: 'Lexend', sans-serif;
+        font-size: 3.2rem;
+        font-weight: 800;
+        margin-bottom: 0px;
+    }
+
+    /* Bo góc các ô nhập liệu và đổi màu viền hồng */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        border-radius: 20px !important;
+        border: 2px solid #f48fb1 !important;
+    }
+
+    /* Nút bấm Gradient Hồng - Cam cực đẹp */
+    .stButton>button {
+        background: linear-gradient(90deg, #ff4081, #f06292) !important;
+        color: white !important;
+        border-radius: 30px !important;
+        border: none !important;
+        padding: 1rem !important;
+        font-size: 1.3rem !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
+        transition: 0.3s;
+        width: 100%;
+    }
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(255, 64, 129, 0.6);
+    }
+
+    /* Khung hiển thị dàn ý chi tiết */
     .result-card {
-        background: #f8fafc; padding: 20px; border-radius: 12px;
-        border-left: 10px solid #e11d48; color: #000000 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 15px;
+        background-color: white;
+        padding: 30px;
+        border-radius: 30px;
+        border-left: 12px solid #ff4081;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        color: #444;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CẤU HÌNH AI "LÌ ĐÒN" ---
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("🔑 Chưa nhập API Key!")
-    st.stop()
+# 3. Thanh bên (Sidebar) với họa tiết cây bút và sách
+with st.sidebar:
+    st.markdown("<h2 style='text-align: center; color: #c2185b;'>📚 Góc Sáng Tạo</h2>", unsafe_allow_html=True)
+    st.image("https://cdn-icons-png.flaticon.com/512/5903/5903939.png", width=150)
+    st.write("---")
+    st.markdown("✨ **Thành viên:** Khang - Sư phạm Ngữ văn")
+    st.markdown("🖍️ **Công cụ:** Gemini 2.5 Flash")
+    st.image("https://cdn-icons-png.flaticon.com/512/2641/2641409.png", width=100)
 
-genai.configure(api_key=api_key)
+# 4. Tiêu đề trang trí
+st.markdown('<h1 class="main-title">🌸 TRÌNH LẬP DÀN Ý VĂN HỌC 🌸</h1>', unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 1.2rem; color: #ad1457;'>✨ Nơi biến ngữ liệu thành những ý tưởng tuyệt vời ✨</p>", unsafe_allow_html=True)
 
-def call_ai_power(content):
-    # CHÌA KHÓA: Đổi sang 1.5-flash để lấy hạn mức cao nhất (15 req/min)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    for i in range(5): # Thử lại 5 lần tự động
-        try:
-            response = model.generate_content(f"Bạn là Văn Hiến AI 2.5. Hãy xử lý: {content}")
-            return response.text
-        except Exception as e:
-            if "429" in str(e):
-                # Nếu bị bóp băng thông, đợi lâu hơn một chút (3-5 giây)
-                time.sleep(4)
-                continue
-            return f"❌ Lỗi: {str(e)}"
-    return "⚠️ Google đang quá tải. Bạn hãy đợi khoảng 15 giây rồi thử lại nhé!"
+# 5. Kết nối API & Model 2.5
+try:
+    if "GEMINI_API_KEY" not in st.secrets:
+        st.error("Chưa cấu hình API Key trong Secrets!")
+    else:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        # Ép sử dụng model 2.5 Flash
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- 3. GIAO DIỆN ---
-st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
+        # Giao diện chính
+        col1, col2 = st.columns([1, 1], gap="large")
 
-t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
+        with col1:
+            st.markdown("### 🖋️ Nhập Đề Bài")
+            topic = st.text_input("", placeholder="Nhập đề bài văn tại đây...")
+            
+            st.markdown("### 📖 Cung Cấp Ngữ Liệu")
+            context = st.text_area("", height=300, placeholder="Dán đoạn văn, bài thơ hoặc thông tin cần phân tích...")
 
-with t1:
-    p1 = st.text_area("Đề bài:", key="p1")
-    if st.button("XỬ LÝ DÀN Ý 2.5"):
-        if p1:
-            with st.spinner("AI 2.5 đang xử lý..."):
-                st.markdown(f"<div class='result-card'>{call_ai_power(f'Lập dàn ý: {p1}')}</div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown("### 🚀 Phân Tích & Lập Dàn Ý")
+            st.write("Nhấn nút bên dưới để AI 2.5 giúp bạn xây dựng bộ khung cho bài viết nhé!")
+            
+            if st.button("💝 Bắt Đầu Lập Dàn Ý"):
+                if topic and context:
+                    with st.spinner('💖 Đang đọc hiểu ngữ liệu bằng trí tuệ nhân tạo 2.5...'):
+                        prompt = f"""
+                        Bạn là một giáo viên dạy văn giỏi. Hãy phân tích ngữ liệu sau và lập dàn ý chi tiết cho đề bài.
+                        Đề bài: {topic}
+                        Ngữ liệu: {context}
+                        
+                        Yêu cầu trình bày dàn ý:
+                        1. Mở bài: Dẫn dắt ấn tượng.
+                        2. Thân bài: Chia rõ các luận điểm, mỗi luận điểm có dẫn chứng từ ngữ liệu.
+                        3. Đánh giá nghệ thuật: Chỉ ra nét đặc sắc trong ngữ liệu.
+                        4. Kết bài: Tổng kết và liên hệ bản thân.
+                        Sử dụng các emoji (📚, ✨, ✍️, 📌) để dàn ý sinh động.
+                        """
+                        
+                        response = model.generate_content(prompt)
+                        st.success("Tada! Dàn ý của bạn đã xong nè! ✨")
+                        st.markdown(f'<div class="result-box result-card">{response.text}</div>', unsafe_allow_html=True)
+                        st.balloons()
+                else:
+                    st.warning("Khang ơi, nhớ điền đủ cả Đề bài và Ngữ liệu nha! 🌸")
 
-with t2:
-    p2 = st.text_area("Bài làm:", key="p2", height=200)
-    if st.button("THẨM ĐỊNH BÀI 2.5"):
-        if p2:
-            with st.spinner("AI 2.5 đang chấm bài..."):
-                st.markdown(f"<div class='result-card'>{call_ai_power(f'Chấm điểm: {p2}')}</div>", unsafe_allow_html=True)
-
-with t3:
-    p3 = st.text_input("Vấn đề:", key="p3")
-    if st.button("TÌM DẪN CHỨNG 2.5"):
-        if p3:
-            with st.spinner("AI 2.5 đang tìm..."):
-                st.markdown(f"<div class='result-card'>{call_ai_power(f'Dẫn chứng: {p3}')}</div>", unsafe_allow_html=True)
+except Exception as e:
+    st.error(f"Hệ thống gặp chút sự cố: {e}")
