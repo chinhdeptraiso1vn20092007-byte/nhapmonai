@@ -1,22 +1,23 @@
 import streamlit as st
 import google.generativeai as genai
+import time
 
-# --- CẤU HÌNH ---
+# --- CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎", layout="centered")
 
-# --- CSS SIÊU TƯƠNG PHẢN (CHỮ ĐEN ĐẬM, DỄ NHÌN) ---
+# --- CSS SIÊU TƯƠNG PHẢN (CHỮ ĐEN ĐẬM 100%) ---
 st.markdown("""
     <style>
     .stApp { background-color: #fff1f2; }
     p, span, label, .stMarkdown, h1, h2, h3, li, textarea, input {
         color: #000000 !important; 
         font-family: 'Arial', sans-serif !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important; /* Siêu đậm để nhìn rõ */
     }
-    .main-title { color: #e11d48 !important; text-align: center; font-size: 3rem; font-weight: 900; }
+    .main-title { color: #e11d48 !important; text-align: center; font-size: 2.8rem; font-weight: 900; }
     .stTabs [data-baseweb="tab"] {
         background-color: #ffe4e6; border-radius: 10px; padding: 10px 20px;
-        color: #e11d48 !important; font-weight: bold;
+        color: #e11d48 !important; font-weight: 800;
     }
     .stTabs [aria-selected="true"] { background-color: #e11d48 !important; color: white !important; }
     .result-card {
@@ -31,7 +32,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- KẾT NỐI AI SIÊU TỐC ---
+# --- KẾT NỐI & TỰ ĐỘNG DÒ MODEL ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("🔑 Thiếu API Key!")
@@ -39,54 +40,73 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Chuyển về 1.5 Flash để lấy kết quả NGAY LẬP TỨC (hạn mức cao nhất)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-def call_ai_fast(content):
+def get_best_model():
+    """Hàm tự động quét danh sách model khả dụng"""
     try:
-        # Gửi thẳng yêu cầu, không qua vòng lặp chờ để ưu tiên tốc độ
-        res = model.generate_content(f"Hãy đóng vai chuyên gia văn học 2.5, trả lời cực sâu sắc đề bài: {content}")
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Ưu tiên các dòng Flash vì tốc độ và hạn mức cao
+        priority_list = [
+            'models/gemini-2.0-flash', 
+            'models/gemini-1.5-flash-latest', 
+            'models/gemini-1.5-flash',
+            'models/gemini-pro'
+        ]
+        for p in priority_list:
+            if p in models:
+                return genai.GenerativeModel(p)
+        return genai.GenerativeModel(models[0]) # Nếu không có trong ưu tiên, lấy cái đầu tiên tìm được
+    except:
+        return genai.GenerativeModel('gemini-1.5-flash') # Phương án dự phòng cuối cùng
+
+# Khởi tạo model tự động
+active_model = get_best_model()
+
+def call_ai_smart(content):
+    try:
+        res = active_model.generate_content(f"Đóng vai chuyên gia văn học 2.5: {content}")
         return res.text
     except Exception as e:
         if "429" in str(e):
-            return "⚠️ Google đang giới hạn tốc độ. Bạn hãy thử nhấn lại sau 5 giây nhé!"
+            st.warning("⏳ Đang xếp hàng chờ Google xử lý (10s)...")
+            time.sleep(10)
+            return "Hệ thống vừa bận, bạn vui lòng bấm lại một lần nữa nhé!"
         return f"❌ Lỗi: {e}"
 
 # --- GIAO DIỆN ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>⚡ Chế độ SIÊU TỐC - Trả kết quả tức thì</p>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align: center; color: #fb7185 !important;'>🤖 Đang sử dụng lõi: {active_model.model_name}</p>", unsafe_allow_html=True)
 
-t1, t2, t3 = st.tabs(["📝 DÀN Ý 2.5", "🕵️ THẨM ĐỊNH", "📡 DẪN CHỨNG"])
+t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🕵️ CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
 with t1:
-    p1 = st.text_area("Nhập đề bài:", placeholder="Phân tích...", height=120, key="v1")
-    if st.button("KÍCH HOẠT 2.5", key="b1"):
+    p1 = st.text_area("Nhập đề bài:", height=100, key="k1")
+    if st.button("LẬP DÀN Ý 2.5", key="b1"):
         if p1:
-            with st.spinner("Đang truy xuất kết quả..."):
-                res = call_ai_fast(f"Lập dàn ý chi tiết: {p1}")
+            with st.spinner("Đang xử lý dữ liệu..."):
+                res = call_ai_smart(f"Lập dàn ý chi tiết: {p1}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 with t2:
-    p2 = st.text_area("Dán bài văn:", height=250, key="v2")
+    p2 = st.text_area("Dán bài văn:", height=200, key="k2")
     if st.button("CHẤM ĐIỂM 2.5", key="b2"):
         if p2:
-            with st.spinner("Đang chấm điểm nhanh..."):
-                res = call_ai_fast(f"Chấm điểm bài văn: {p2}")
+            with st.spinner("Đang thẩm định..."):
+                res = call_ai_smart(f"Chấm điểm bài văn: {p2}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 with t3:
-    p3 = st.text_input("Vấn đề xã hội:", key="v3")
+    p3 = st.text_input("Vấn đề xã hội:", key="k3")
     if st.button("TRUY XUẤT 2.5", key="b3"):
         if p3:
-            with st.spinner("Đang quét dữ liệu..."):
-                res = call_ai_fast(f"Dẫn chứng thực tế về: {p3}")
+            with st.spinner("Đang quét dẫn chứng..."):
+                res = call_ai_smart(f"Dẫn chứng về: {p3}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.markdown(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Powered by Gemini 1.5 Flash Turbo Core • 2026")
+st.caption("Chế độ: Tự động dò tìm Model (Auto-Scan) • 2026")
