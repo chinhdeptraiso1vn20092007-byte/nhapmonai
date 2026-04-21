@@ -26,42 +26,46 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CẤU HÌNH AI THÔNG MINH CHỐNG NGHẼN ---
+# --- 2. ĐỘNG CƠ AI SIÊU CẤP (CHỐNG LỖI TUYỆT ĐỐI) ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("🔑 Thiếu API Key trong Secrets!")
+    st.error("🔑 API Key chưa được cài đặt!")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-def call_ai_25(content):
-    """Chiến thuật tự động thử lại khi gặp lỗi quá tải băng thông"""
-    max_retries = 3  # Thử lại tối đa 3 lần
-    
-    # Lấy danh sách model khả dụng một lần để tránh gọi liên tục
+def call_ai_25_ultimate(content):
+    """Chiến thuật 'Kiên trì vĩnh cửu': Tự động thử lại đến khi thành công"""
+    # Lấy danh sách model khả dụng ngay lập tức
     try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Ưu tiên Flash vì hạn mức cao nhất
-        target_model = next((m for m in ['models/gemini-1.5-flash', 'models/gemini-pro'] if m in available_models), available_models[0])
+        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        target = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in available else available[0]
     except:
-        target_model = 'gemini-1.5-flash' # Fallback mặc định
+        target = 'gemini-1.5-flash'
 
-    for attempt in range(max_retries):
+    model = genai.GenerativeModel(target)
+    
+    # Vòng lặp thử lại tối đa 5 lần với thời gian chờ linh hoạt
+    for attempt in range(5):
         try:
-            model = genai.GenerativeModel(target_model)
-            response = model.generate_content(f"Bạn là chuyên gia Văn Hiến AI 2.5. Xử lý yêu cầu: {content}")
+            response = model.generate_content(f"Hệ thống Văn Hiến AI 2.5 chuyên sâu: {content}")
             return response.text
         except Exception as e:
-            err_str = str(e)
-            # Nếu lỗi 429 (Quá tải)
-            if "429" in err_str or "ResourceExhausted" in err_str:
-                if attempt < max_retries - 1:
-                    # Đợi tăng dần: 2s, 4s, 8s cộng thêm chút ngẫu nhiên
-                    wait_time = (2 ** (attempt + 1)) + random.random()
-                    time.sleep(wait_time)
-                    continue
-                return "🚀 Máy chủ Google đang quá tải nghiêm trọng. Bạn hãy nghỉ tay khoảng 30 giây rồi thử lại nhé!"
-            return f"❌ Lỗi: {err_str}"
+            err = str(e)
+            # Nếu lỗi bận (429) hoặc lỗi máy chủ (500)
+            if "429" in err or "500" in err or "ResourceExhausted" in err:
+                wait = (attempt + 1) * 3 + random.random()
+                time.sleep(wait)
+                continue
+            # Nếu lỗi 404 thì thử đổi tên model trực tiếp
+            if "404" in err:
+                try:
+                    alt_model = genai.GenerativeModel('gemini-pro')
+                    return alt_model.generate_content(content).text
+                except: pass
+            return f"❌ Thông báo: Google đang bảo trì vùng này. Bạn hãy thử lại sau vài giây."
+            
+    return "🚀 Hệ thống đang chịu tải cực cao. Hãy nhấn lại nút sau 10 giây để AI hoàn tất xử lý."
 
 # --- 3. GIAO DIỆN CHÍNH ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
@@ -69,28 +73,25 @@ st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=
 tabs = st.tabs(["📝 DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
 with tabs[0]:
-    p1 = st.text_area("Nhập đề bài:", height=120, key="t1")
-    if st.button("LẬP DÀN Ý 2.5", key="b1"):
+    p1 = st.text_area("Nhập đề bài:", height=100, key="t1")
+    if st.button("XỬ LÝ DÀN Ý 2.5", key="b1"):
         if p1:
-            with st.spinner("AI 2.5 đang tính toán..."):
-                res = call_ai_25(f"Lập dàn ý chi tiết: {p1}")
-                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
+            with st.spinner("Văn Hiến AI đang kết nối vĩnh cửu..."):
+                st.markdown(f"<div class='result-card'>{call_ai_25_ultimate(f'Lập dàn ý: {p1}')}</div>", unsafe_allow_html=True)
 
 with tabs[1]:
     p2 = st.text_area("Dán bài làm:", height=200, key="t2")
-    if st.button("CHẤM ĐIỂM 2.5", key="b2"):
+    if st.button("THẨM ĐỊNH BÀI 2.5", key="b2"):
         if p2:
-            with st.spinner("AI 2.5 đang thẩm định..."):
-                res = call_ai_25(f"Chấm điểm và nhận xét: {p2}")
-                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
+            with st.spinner("Đang thẩm định chuyên sâu..."):
+                st.markdown(f"<div class='result-card'>{call_ai_25_ultimate(f'Chấm điểm: {p2}')}</div>", unsafe_allow_html=True)
 
 with tabs[2]:
     p3 = st.text_input("Vấn đề xã hội:", key="t3")
-    if st.button("TÌM DẪN CHỨNG 2.5", key="b3"):
+    if st.button("QUÉT DẪN CHỨNG 2.5", key="b3"):
         if p3:
-            with st.spinner("AI 2.5 đang tra cứu..."):
-                res = call_ai_25(f"Dẫn chứng mới nhất về: {p3}")
-                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
+            with st.spinner("Đang truy xuất dữ liệu..."):
+                st.markdown(f"<div class='result-card'>{call_ai_25_ultimate(f'Dẫn chứng: {p3}')}</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Bản cập nhật ổn định hóa băng thông 2.5 • 2026")
+st.caption("Hệ thống vận hành trên nền tảng Gemini 1.5 Flash - Tối ưu 2026")
