@@ -1,6 +1,5 @@
 import streamlit as st
 from google import genai
-import time
 import html
 
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎", layout="centered")
@@ -51,7 +50,7 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 PRIMARY_MODEL = "gemini-2.5-flash"
-FALLBACK_MODEL = "gemini-2.0-flash-001"   # đổi từ 1.5 sang 2.0
+FALLBACK_MODEL = "gemini-2.0-flash"
 
 def call_model(model_name: str, prompt: str) -> str:
     response = client.models.generate_content(
@@ -60,7 +59,17 @@ def call_model(model_name: str, prompt: str) -> str:
     )
     if getattr(response, "text", None):
         return response.text.strip()
-    raise RuntimeError(f"Model {model_name} không trả về text.")
+    raise RuntimeError(f"Model {model_name} không trả về nội dung.")
+
+def friendly_quota_message():
+    return (
+        "🚫 Hệ thống AI hiện tạm hết lượt sử dụng.\n\n"
+        "Bạn vui lòng thử lại sau ít phút hoặc đổi API key khác.\n\n"
+        "Cách xử lý:\n"
+        "- Chờ quota reset\n"
+        "- Tạo API key / project mới trong Google AI Studio\n"
+        "- Nâng gói nếu cần dùng thường xuyên"
+    )
 
 def call_ai(content: str) -> str:
     prompt = f"""
@@ -72,27 +81,19 @@ Hãy trả lời rõ ràng, có bố cục, đúng chính tả.
 
     try:
         return call_model(PRIMARY_MODEL, prompt)
-
     except Exception as e1:
-        err1 = str(e1)
-        lower = err1.lower()
+        err1 = str(e1).lower()
 
-        # Nếu hết quota / rate limit / model tạm unavailable
-        if any(x in lower for x in ["429", "quota", "rate", "resource_exhausted", "503", "unavailable"]):
+        if "429" in err1 or "resource_exhausted" in err1 or "quota" in err1:
             try:
                 return call_model(FALLBACK_MODEL, prompt)
             except Exception as e2:
-                return (
-                    "❌ Gemini 2.5 hiện đã hết quota hoặc tạm không phản hồi.\n\n"
-                    f"Lỗi model 2.5: {e1}\n\n"
-                    f"Lỗi model 2.0 dự phòng: {e2}\n\n"
-                    "Cách xử lý:\n"
-                    "1. Chờ quota reset rồi thử lại.\n"
-                    "2. Tạo API key/project khác.\n"
-                    "3. Nâng gói trong Google AI Studio nếu cần dùng nhiều."
-                )
+                err2 = str(e2).lower()
+                if "429" in err2 or "resource_exhausted" in err2 or "quota" in err2:
+                    return friendly_quota_message()
+                return f"❌ Lỗi model dự phòng: {e2}"
 
-        return f"❌ Lỗi thật từ API: {e1}"
+        return f"❌ Lỗi hệ thống: {e1}"
 
 def show_result(text: str):
     safe_text = html.escape(text)
@@ -139,4 +140,4 @@ with tabs[2]:
             st.warning("Bạn chưa nhập.")
 
 st.markdown("---")
-st.caption("Ưu tiên Gemini 2.5 Flash • fallback Gemini 2.0 Flash")
+st.caption("Ưu tiên Gemini 2.5 Flash • dự phòng Gemini 2.0 Flash")
