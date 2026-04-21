@@ -25,7 +25,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CẤU HÌNH AI THÔNG MINH ---
+# --- CẤU HÌNH AI NÂNG CAO ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("🔑 Thiếu API Key trong Secrets!")
@@ -34,33 +34,25 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 def call_ai_25(content):
-    """Tự động tìm kiếm model khả dụng để tránh lỗi 404"""
-    try:
-        # Bước 1: Liệt kê các model mà Key này có quyền sử dụng
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # Bước 2: Thứ tự ưu tiên chọn model
-        priority = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
-        selected_model = None
-        
-        for p in priority:
-            if p in available_models:
-                selected_model = p
-                break
-        
-        if not selected_model:
-            # Nếu không tìm thấy cái nào trong danh sách ưu tiên, lấy đại cái đầu tiên có sẵn
-            selected_model = available_models[0]
+    """Cấu trúc tự phục hồi: Thử lại khi quá tải và tự chọn Model"""
+    max_retries = 2  # Thử lại tối đa 2 lần nếu lỗi
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # 1. Tìm model khả dụng nhất
+            available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            target = next((m for m in ['models/gemini-1.5-flash', 'models/gemini-pro'] if m in available), available[0])
+            
+            # 2. Gọi model
+            model = genai.GenerativeModel(target)
+            response = model.generate_content(f"Bạn là chuyên gia Văn Hiến AI 2.5. Xử lý: {content}")
+            return response.text
 
-        # Bước 3: Thực hiện gọi AI
-        model = genai.GenerativeModel(selected_model)
-        response = model.generate_content(f"Bạn là chuyên gia Văn Hiến AI 2.5. Xử lý yêu cầu: {content}")
-        return response.text
-
-    except Exception as e:
-        if "429" in str(e):
-            return "⚠️ Quá tải băng thông. Hãy đợi 15 giây rồi nhấn lại nút."
-        return f"❌ Lỗi kết nối: {str(e)}"
+        except Exception as e:
+            if "429" in str(e) and attempt < max_retries:
+                time.sleep(3)  # Nghỉ ngắn 3 giây trước khi thử lại tự động
+                continue
+            return f"⚠️ Hệ thống đang rất bận. Bạn vui lòng đợi khoảng 15 giây rồi hãy bấm nút lần nữa nhé!"
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
@@ -68,25 +60,25 @@ st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=
 t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
 with t1:
-    p1 = st.text_area("Nhập đề bài:", height=120, key="t1")
+    p1 = st.text_area("Nhập đề bài văn học:", height=120, key="t1")
     if st.button("LẬP DÀN Ý 2.5", key="b1"):
         if p1:
-            with st.spinner("AI 2.5 đang làm việc..."):
-                st.markdown(f"<div class='result-card'>{call_ai_25(f'Lập dàn ý: {p1}')}</div>", unsafe_allow_html=True)
+            with st.spinner("AI 2.5 đang phân tích..."):
+                st.markdown(f"<div class='result-card'>{call_ai_25(f'Lập dàn ý chi tiết: {p1}')}</div>", unsafe_allow_html=True)
 
 with t2:
-    p2 = st.text_area("Dán bài làm:", height=200, key="t2")
+    p2 = st.text_area("Dán bài làm của học sinh:", height=200, key="t2")
     if st.button("CHẤM ĐIỂM 2.5", key="b2"):
         if p2:
             with st.spinner("AI 2.5 đang thẩm định..."):
-                st.markdown(f"<div class='result-card'>{call_ai_25(f'Chấm điểm: {p2}')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='result-card'>{call_ai_25(f'Chấm điểm và nhận xét: {p2}')}</div>", unsafe_allow_html=True)
 
 with t3:
     p3 = st.text_input("Vấn đề xã hội:", key="t3")
     if st.button("TÌM DẪN CHỨNG 2.5", key="b3"):
         if p3:
             with st.spinner("AI 2.5 đang tra cứu..."):
-                st.markdown(f"<div class='result-card'>{call_ai_25(f'Dẫn chứng: {p3}')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='result-card'>{call_ai_25(f'Dẫn chứng thời sự về: {p3}')}</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Phiên bản tự động dò tìm Model 2.5 • 2026")
+st.caption("Bản cập nhật ổn định hóa băng thông mô hình 2.5 • 2026")
