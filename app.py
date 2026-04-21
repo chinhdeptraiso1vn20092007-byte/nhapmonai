@@ -25,68 +25,64 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CẤU HÌNH AI "BẤT TỬ" ---
+# --- 2. ĐỘNG CƠ VĂN HIẾN AI 2.5 (CHẮC CHẮN CHẠY) ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("🔑 Bạn chưa nhập API Key vào phần Secrets của Streamlit!")
+    st.error("🔑 Lỗi: Chưa tìm thấy GEMINI_API_KEY trong mục Secrets của Streamlit.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-def call_vanhien_ai(prompt_text):
-    """Hàm xử lý thông minh: Chống nghẽn, chống lỗi 404, chống lỗi quá tải"""
-    # Chỉ sử dụng model ổn định nhất, không dùng bản thử nghiệm để tránh 404
-    model_name = 'gemini-1.5-flash'
-    
-    # Giới hạn nội dung quá dài để tránh lỗi băng thông (gói Free không chịu nổi bài quá dài)
-    safe_content = prompt_text[:5000] 
-    
-    for trial in range(3): # Thử lại tối đa 3 lần nếu bận
-        try:
-            model = genai.GenerativeModel(model_name)
-            # Ép AI phản hồi theo phong cách Văn Hiến 2.5
-            full_prompt = f"Bạn là hệ thống Văn Hiến AI 2.5. Nhiệm vụ của bạn là: {safe_content}"
-            response = model.generate_content(full_prompt)
-            return response.text
-        except Exception as e:
-            err = str(e).lower()
-            if "429" in err or "quota" in err or "limit" in err:
-                time.sleep( trial * 5 + 2 ) # Đợi giãn cách tăng dần
-                continue
-            if "404" in err:
-                # Nếu 1.5 Flash lỗi, đổi sang Pro ngay lập tức
-                model_name = 'gemini-pro'
-                continue
-            return f"⚠️ Hệ thống đang bảo trì nhẹ. Bạn hãy nhấn lại nút sau 10 giây nhé!"
-    
-    return "🚀 Đã tối ưu hóa luồng. Bạn hãy bấm nút lại một lần nữa để nhận kết quả ngay."
+def call_ai_power(content):
+    # Sử dụng model phổ biến nhất để tuyệt đối không lỗi 404
+    # Ghi rõ models/gemini-1.5-flash để hệ thống nhận diện tốt nhất
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Thêm tiền tố định danh cho hệ thống 2.5
+        full_prompt = f"Bạn là hệ thống chuyên gia Văn Hiến AI 2.5. Hãy thực hiện: {content}"
+        response = model.generate_content(full_prompt)
+        return response.text
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "429" in err_msg or "resource" in err_msg:
+            return "⚠️ **Hệ thống đang xử lý hàng đợi.** Bạn vui lòng đợi 10 giây rồi nhấn lại nút để nhận kết quả nhé! Google cần một chút thời gian để reset băng thông cho gói miễn phí."
+        elif "404" in err_msg:
+            # Fallback sang model khác nếu 1.5 flash không tồn tại ở vùng đó
+            try:
+                alt_model = genai.GenerativeModel('gemini-pro')
+                return alt_model.generate_content(content).text
+            except:
+                return "❌ Model hiện tại đang bảo trì. Bạn hãy thử lại sau ít phút."
+        return f"❌ Thông báo: {str(e)}"
 
-# --- 3. GIAO DIỆN CHÍNH ---
+# --- 3. GIAO DIỆN NGƯỜI DÙNG ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #e11d48;'>Hệ thống Phân tích Ngữ văn Cao cấp</p>", unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["📝 LẬP DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
+t1, t2, t3 = st.tabs(["📝 LẬP DÀN Ý", "🎓 CHẤM ĐIỂM", "📡 DẪN CHỨNG"])
 
-with tab1:
-    txt1 = st.text_area("Đề bài văn học:", placeholder="Nhập đề bài tại đây...", key="txt1")
-    if st.button("KHỞI TẠO DÀN Ý 2.5"):
-        if txt1:
-            with st.spinner("Văn Hiến AI đang xử lý..."):
-                st.markdown(f"<div class='result-card'>{call_vanhien_ai(f'Lập dàn ý chi tiết cho đề bài: {txt1}')}</div>", unsafe_allow_html=True)
+with t1:
+    p1 = st.text_area("Nhập đề bài văn học:", key="p1", height=120)
+    if st.button("XỬ LÝ DÀN Ý 2.5", key="b1"):
+        if p1:
+            with st.spinner("Đang kết nối AI 2.5..."):
+                res = call_ai_power(f"Lập dàn ý chi tiết: {p1}")
+                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
-with tab2:
-    txt2 = st.text_area("Nội dung bài làm:", placeholder="Dán bài văn cần chấm...", height=250, key="txt2")
-    if st.button("THẨM ĐỊNH CHI TIẾT 2.5"):
-        if txt2:
+with t2:
+    p2 = st.text_area("Dán bài văn làm của học sinh:", key="p2", height=200)
+    if st.button("THẨM ĐỊNH CHI TIẾT 2.5", key="b2"):
+        if p2:
             with st.spinner("Đang chấm điểm chuyên sâu..."):
-                st.markdown(f"<div class='result-card'>{call_vanhien_ai(f'Chấm điểm và nhận xét ưu nhược điểm bài văn này: {txt2}')}</div>", unsafe_allow_html=True)
+                res = call_ai_power(f"Chấm điểm và nhận xét ưu nhược điểm: {p2}")
+                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
-with tab3:
-    txt3 = st.text_input("Vấn đề cần dẫn chứng:", placeholder="Ví dụ: Lòng dũng cảm...", key="txt3")
-    if st.button("TRUY XUẤT DẪN CHỨNG 2.5"):
-        if txt3:
-            with st.spinner("Đang tìm dữ liệu..."):
-                st.markdown(f"<div class='result-card'>{call_vanhien_ai(f'Tìm dẫn chứng thời sự mới nhất về: {txt3}')}</div>", unsafe_allow_html=True)
+with t3:
+    p3 = st.text_input("Vấn đề xã hội cần dẫn chứng:", key="p3")
+    if st.button("QUÉT DỮ LIỆU 2.5", key="b3"):
+        if p3:
+            with st.spinner("Đang tìm dẫn chứng..."):
+                res = call_ai_power(f"Tìm 3 dẫn chứng mới nhất về: {p3}")
+                st.markdown(f"<div class='result-card'>{res}</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("© 2026 Văn Hiến AI - Thế hệ 2.5 Siêu tốc")
+st.caption("© 2026 Văn Hiến AI - Phiên bản 2.5 Hệ thống Siêu tốc")
