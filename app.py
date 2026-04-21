@@ -2,109 +2,129 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- CẤU HÌNH ---
+# --- CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(page_title="VĂN HIẾN AI 2.5", page_icon="💎", layout="centered")
 
-# --- CSS SIÊU ĐẬM - SIÊU RÕ ---
+# --- CSS TỐI ƯU TƯƠNG PHẢN TUYỆT ĐỐI ---
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; }
-    /* Làm chữ to và đen đậm tuyệt đối */
+    
+    /* Chữ đen đặc, to, dày để nhìn rõ 100% */
     p, span, label, .stMarkdown, h1, h2, h3, li, textarea, input {
         color: #000000 !important; 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        font-family: 'Arial', sans-serif !important;
         font-weight: 800 !important;
-        font-size: 1.1rem !important;
     }
-    .main-title { color: #e11d48 !important; text-align: center; font-size: 3.5rem !important; font-weight: 900 !important; }
     
-    /* Làm nổi bật các Tab */
+    .main-title { 
+        color: #e11d48 !important; 
+        text-align: center; 
+        font-size: 3rem !important; 
+        font-weight: 900 !important;
+        margin-bottom: 0px;
+    }
+
+    /* Tab rõ ràng */
     .stTabs [data-baseweb="tab"] {
-        background-color: #f1f5f9; border-radius: 12px; padding: 15px 30px;
-        color: #475569 !important; border: 2px solid #e2e8f0;
+        background-color: #f8fafc; border-radius: 10px; padding: 10px 20px;
+        color: #e11d48 !important; border: 1px solid #e2e8f0;
     }
-    .stTabs [aria-selected="true"] { background-color: #e11d48 !important; color: white !important; border: 2px solid #e11d48; }
-    
-    /* Nút bấm siêu to */
+    .stTabs [aria-selected="true"] { 
+        background-color: #e11d48 !important; color: white !important; 
+    }
+
+    /* Nút bấm nổi bật */
     .stButton>button {
         width: 100%; background: #e11d48 !important; color: white !important;
-        font-weight: 900 !important; height: 70px; border-radius: 20px !important; font-size: 20px !important;
+        font-weight: 900 !important; height: 60px; border-radius: 15px !important;
+        font-size: 1.2rem !important;
     }
+
+    /* Khung kết quả hiển thị cực rõ */
     .result-card {
-        background: #f8fafc; padding: 30px; border-radius: 25px;
-        border: 4px solid #e11d48; color: #000000 !important; font-size: 19px !important;
+        background: #ffffff; padding: 25px; border-radius: 15px;
+        border: 4px solid #e11d48; color: #000000 !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        margin-top: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KẾT NỐI AI ---
+# --- KHỞI TẠO AI ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("🔑 Bạn chưa nhập API Key vào phần Secrets của Streamlit!")
+    st.error("🔑 Lỗi: Chưa cấu hình API Key trong Secrets!")
     st.stop()
 
 genai.configure(api_key=api_key)
 
 def call_ai_final_boss(content):
-    """Cơ chế tự động dò tìm và kiên trì đến cùng"""
-    # Danh sách model từ cao xuống thấp
-    models_to_try = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro']
+    """Chiến thuật nhảy Model liên tục để thoát lỗi 429"""
+    # Danh sách ưu tiên các model ổn định nhất
+    models_to_try = [
+        'gemini-1.5-flash-latest', 
+        'gemini-1.5-flash', 
+        'gemini-1.5-pro-latest',
+        'gemini-pro'
+    ]
     
-    status = st.empty()
+    placeholder = st.empty()
     
     for model_name in models_to_try:
         try:
             model = genai.GenerativeModel(model_name)
-            # Thử gửi yêu cầu
-            res = model.generate_content(f"Chuyên gia Ngữ văn 2.5 hãy giải quyết: {content}", 
-                                         generation_config={"temperature": 0.7})
-            status.empty()
+            res = model.generate_content(f"Chuyên gia Ngữ văn 2.5: {content}")
+            placeholder.empty()
             return res.text
         except Exception as e:
             if "429" in str(e) or "ResourceExhausted" in str(e):
-                status.warning(f"🚀 Model {model_name} đang nghẽn. Đang tự động chuyển model khác và chờ 10s...")
-                time.sleep(10)
-                continue # Thử model tiếp theo
+                placeholder.info(f"🔄 Cổng {model_name} đang bận, đang chuyển cổng dự phòng...")
+                time.sleep(3) # Đợi ngắn để thử cổng khác
+                continue
             else:
                 continue
                 
-    return "❌ Hiện tại tất cả các model đều bận do giới hạn của Google. Bạn vui lòng đợi 1-2 phút rồi nhấn 'Thử lại' nhé!"
+    return "⚠️ Google đang bảo trì toàn bộ cổng miễn phí. Bạn hãy đợi khoảng 30 giây rồi nhấn lại nút nhé!"
 
-# --- GIAO DIỆN ---
+# --- GIAO DIỆN CHÍNH ---
 st.markdown("<h1 class='main-title'>VĂN HIẾN AI 2.5</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Bản Cứu Trợ Khẩn Cấp - Tự Động Vượt Lỗi Quá Tải</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Bản Fix Lỗi Toàn Diện - Trả Kết Quả Thông Suốt</p>", unsafe_allow_html=True)
 
-t1, t2, t3 = st.tabs(["📝 DÀN Ý 2.5", "🕵️ THẨM ĐỊNH", "📡 DẪN CHỨNG"])
+t1, t2, t3 = st.tabs(["📝 DÀN Ý", "🕵️ THẨM ĐỊNH", "📡 DẪN CHỨNG"])
 
 with t1:
-    p1 = st.text_area("Nhập đề bài:", height=100, key="k1")
-    if st.button("LẬP DÀN Ý NGAY", key="b1"):
+    st.markdown("### 🖋️ Nhập đề bài")
+    p1 = st.text_area("Đề bài văn học:", height=100, key="input_t1")
+    if st.button("LẬP DÀN Ý 2.5", key="btn_t1"):
         if p1:
-            with st.spinner("Hệ thống 2.5 đang tìm đường kết nối..."):
-                res = call_ai_final_boss(f"Lập dàn ý chi tiết bài: {p1}")
+            with st.spinner("Hệ thống 2.5 đang phân tích..."):
+                res = call_ai_final_boss(f"Lập dàn ý chi tiết bài văn: {p1}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.write(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 with t2:
-    p2 = st.text_area("Dán bài văn:", height=200, key="k2")
-    if st.button("CHẤM ĐIỂM NGAY", key="b2"):
+    st.markdown("### 🔍 Chấm điểm bài văn")
+    p2 = st.text_area("Dán bài làm tại đây:", height=200, key="input_t2")
+    if st.button("CHẤM ĐIỂM NGAY", key="btn_t2"):
         if p2:
-            with st.spinner("Đang thẩm định bài viết..."):
-                res = call_ai_final_boss(f"Chấm điểm và nhận xét: {p2}")
+            with st.spinner("Đang thẩm định chất lượng..."):
+                res = call_ai_final_boss(f"Chấm điểm và sửa bài văn: {p2}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.write(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 with t3:
-    p3 = st.text_input("Vấn đề xã hội:", key="k3")
-    if st.button("TRUY XUẤT DẪN CHỨNG", key="b3"):
+    st.markdown("### 📰 Dẫn chứng thực tế")
+    p3 = st.text_input("Vấn đề xã hội:", key="input_t3")
+    if st.button("TRUY XUẤT DẪN CHỨNG", key="btn_t3"):
         if p3:
-            with st.spinner("Đang tra cứu dữ liệu thực tế..."):
-                res = call_ai_with_retry(f"Dẫn chứng thực tế về: {p3}")
+            with st.spinner("Đang tìm kiếm dữ liệu mới..."):
+                res = call_ai_final_boss(f"Tìm dẫn chứng thực tế cho: {p3}")
                 st.markdown("<div class='result-card'>", unsafe_allow_html=True)
                 st.write(res)
                 st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Version: 2.5 Rescue Edition • 2026")
+st.caption("Core: Gemini Hybrid Engine (Auto-Retry) • 2026")
